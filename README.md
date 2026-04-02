@@ -1,4 +1,4 @@
-# Flight Tracker `v0.9.0-beta`
+# Flight Tracker `v0.9.1-beta`
 
 A personal full-screen flight tracking dashboard built with Flask and Leaflet.js. Shows live overhead flights, airport arrivals/departures, weather overlays, and more.
 
