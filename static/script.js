@@ -527,6 +527,36 @@ function updateSubtitles() {
         `last ${fmtMins(settings.depPast)} · next ${fmtMins(settings.depFuture)}`;
 }
 
+// ---- Toast ----
+
+let toastTimer = null;
+function showToast(msg, duration = 3000) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ---- Locate flight from arrivals/departures panel ----
+
+async function locateFlight(callsign) {
+    showToast(`Locating ${callsign}…`, 10000);
+    try {
+        const res = await fetch(`/api/locate?callsign=${encodeURIComponent(callsign)}`);
+        const d = await res.json();
+        if (d.found) {
+            showToast(`Found ${callsign} — panning to location`);
+            map.setView([d.lat, d.lon], Math.max(map.getZoom(), 8));
+            refreshFlights();
+        } else {
+            showToast(`${callsign} is not currently trackable`);
+        }
+    } catch (e) {
+        showToast('Could not locate flight');
+    }
+}
+
 async function refreshAirport() {
     if (!currentAirport) return;
     const arrList = document.getElementById('arrivals-list');
@@ -545,7 +575,7 @@ async function refreshAirport() {
         arrList.innerHTML = data.arrivals.length === 0
             ? '<div class="empty-msg">No arrivals in this window</div>'
             : data.arrivals.map(a => `
-                <div class="flight-row">
+                <div class="flight-row clickable" data-callsign="${a.callsign}">
                     <div class="flight-callsign">${a.callsign}</div>
                     <div class="flight-detail">From: ${a.from}</div>
                     <div class="flight-detail">${a.time} &nbsp;·&nbsp; <span class="${statusClass(a.status)}">${a.status}</span></div>
@@ -554,7 +584,7 @@ async function refreshAirport() {
         depList.innerHTML = data.departures.length === 0
             ? '<div class="empty-msg">No departures in this window</div>'
             : data.departures.map(d => `
-                <div class="flight-row">
+                <div class="flight-row clickable" data-callsign="${d.callsign}">
                     <div class="flight-callsign">${d.callsign}</div>
                     <div class="flight-detail">To: ${d.to}</div>
                     <div class="flight-detail">${d.time} &nbsp;·&nbsp; <span class="${statusClass(d.status)}">${d.status}</span></div>
@@ -757,6 +787,15 @@ function updateClock() {
 }
 updateClock();
 setInterval(updateClock, 1000);
+
+// ---- Arrivals/departures click to locate ----
+
+['arrivals-list', 'departures-list'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+        const row = e.target.closest('.flight-row[data-callsign]');
+        if (row) locateFlight(row.dataset.callsign);
+    });
+});
 
 // ---- Init ----
 updateSubtitles();

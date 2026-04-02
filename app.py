@@ -228,6 +228,23 @@ def api_airport():
         return jsonify({"error": "FR24 unavailable"}), 503
     return jsonify({"arrivals": arrivals, "departures": departures})
 
+@app.route('/api/locate')
+def api_locate():
+    callsign = request.args.get('callsign', '').strip().upper()
+    if not callsign:
+        return jsonify({"error": "callsign required"}), 400
+    try:
+        results = fr_api.search(callsign)
+        for f in results.get('live', []):
+            cs  = (getattr(f, 'callsign', '') or '').upper()
+            num = (getattr(f, 'number',   '') or '').upper()
+            if cs == callsign or num == callsign:
+                return jsonify({"found": True, "lat": f.latitude, "lon": f.longitude})
+        return jsonify({"found": False})
+    except Exception as e:
+        print(f"FR24 locate error: {e}")
+        return jsonify({"found": False})
+
 @app.route('/api/config')
 def api_config():
     return jsonify({"owm_api_key": os.getenv("OPENWEATHER_API_KEY", ""), "version": VERSION})

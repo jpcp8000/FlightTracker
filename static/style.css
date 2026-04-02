@@ -505,6 +505,30 @@ body.light #map-status {
 
 .flight-row:hover { background: var(--bg-hover); }
 
+.flight-row.clickable { cursor: pointer; }
+
+/* ---- Toast notification ---- */
+
+#toast {
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 1001;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+#toast.show { opacity: 1; }
+
 .flight-callsign {
     font-size: 14px;
     font-weight: 600;
