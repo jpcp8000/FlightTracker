@@ -24,8 +24,8 @@ A personal full-screen flight tracking dashboard built with Flask and Leaflet.js
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/flight-tracker.git
-cd flight-tracker
+git clone https://github.com/jpcp8000/FlightTracker.git
+cd FlightTracker
 ```
 
 ### 2. Install dependencies
