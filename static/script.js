@@ -6,8 +6,6 @@ let flightMarkers    = {};
 let flightTrails     = {};   // callsign → Leaflet polyline
 let positionHistory  = {};   // callsign → [[lat, lon], ...]
 let airportMarkers   = {};
-let userLat = null;
-let userLon = null;
 let followedCallsign = null;
 let flightFilter     = '';
 
@@ -190,7 +188,7 @@ document.getElementById('flight-filter').addEventListener('input', (e) => {
 const HELICOPTER_CODES = new Set([
     'AS50','AS55','AS32','AS35','AS65','AS3B',
     'B06','B07','B06T','B212','B214','B222','B230','B412','B427','B429','B430','B47G','B47J',
-    'EC20','EC25','EC30','EC35','EC45','EC55','EC75','EC35','EC45',
+    'EC20','EC25','EC30','EC35','EC45','EC55','EC75',
     'H500','H60','H64','H1','H43','H47',
     'MD52','MD60','MD63','MD69',
     'R22','R44','R66',
@@ -678,8 +676,6 @@ let refreshFlightsInterval = null;
 let refreshAirportInterval = null;
 
 function start(lat, lon) {
-    userLat = lat;
-    userLon = lon;
     map.setView([lat, lon], 10);
     document.getElementById('airport-input').value = currentAirport;
     if (refreshFlightsInterval) clearInterval(refreshFlightsInterval);
