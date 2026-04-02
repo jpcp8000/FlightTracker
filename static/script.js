@@ -9,8 +9,9 @@ let airportMarkers   = {};
 let followedCallsign = null;
 let followPanning    = false;
 let flightFilter     = '';
+let lastPosition     = {}; // key → {lat, lon, heading, status} for skip-unchanged
 
-const MAX_TRAIL_POINTS = 60; // 10 min at 3-sec refresh
+const MAX_TRAIL_POINTS = 200; // ~10 min at 3-sec refresh
 
 // Use icao24 as the unique key per aircraft; fall back to callsign if missing
 function flightKey(f) {
@@ -411,10 +412,14 @@ async function refreshFlights() {
             seenKeys.add(key);
             const popupHTML = buildPopup(f);
 
+            const prev = lastPosition[key];
+            const moved = !prev || prev.lat !== f.lat || prev.lon !== f.lon;
+            const changed = !prev || prev.heading !== f.heading || prev.status !== f.status;
+
             if (flightMarkers[key]) {
-                flightMarkers[key].setLatLng([f.lat, f.lon]);
-                flightMarkers[key].setIcon(planeIcon(f.heading, f.aircraft, f.status));
-                flightMarkers[key].setPopupContent(popupHTML);
+                if (moved)   flightMarkers[key].setLatLng([f.lat, f.lon]);
+                if (changed) flightMarkers[key].setIcon(planeIcon(f.heading, f.aircraft, f.status));
+                if (moved || changed) flightMarkers[key].setPopupContent(popupHTML);
             } else {
                 const marker = L.marker([f.lat, f.lon], { icon: planeIcon(f.heading, f.aircraft, f.status) })
                     .bindPopup(popupHTML)
@@ -423,38 +428,40 @@ async function refreshFlights() {
                 flightMarkers[key] = marker;
             }
 
+            lastPosition[key] = { lat: f.lat, lon: f.lon, heading: f.heading, status: f.status };
+
             // Pan to followed plane
-            if (followedCallsign === key) {
+            if (followedCallsign === key && moved) {
                 followPanning = true;
                 map.panTo([f.lat, f.lon], { animate: true, duration: 0.5 });
                 setTimeout(() => { followPanning = false; }, 600);
             }
 
-            // Update position history
-            if (!positionHistory[key]) positionHistory[key] = [];
-            const hist = positionHistory[key];
-            const last = hist[hist.length - 1];
-            if (!last || last[0] !== f.lat || last[1] !== f.lon) {
+            // Update position history and trail only when the plane actually moved
+            if (moved) {
+                if (!positionHistory[key]) positionHistory[key] = [];
+                const hist = positionHistory[key];
                 hist.push([f.lat, f.lon]);
                 if (hist.length > MAX_TRAIL_POINTS) hist.shift();
+
+                if (settings.fields.showTrails && hist.length >= 2) {
+                    const color = getPlaneColor(f.status, f.aircraft);
+                    if (flightTrails[key]) {
+                        flightTrails[key].setLatLngs(hist);
+                        if (changed) flightTrails[key].setStyle({ color });
+                    } else {
+                        flightTrails[key] = L.polyline(hist, {
+                            color,
+                            weight: 1.5,
+                            opacity: 0.5,
+                            interactive: false
+                        }).addTo(map);
+                        flightTrails[key].bringToBack();
+                    }
+                }
             }
 
-            // Draw or update trail
-            if (settings.fields.showTrails && hist.length >= 2) {
-                const color = getPlaneColor(f.status, f.aircraft);
-                if (flightTrails[key]) {
-                    flightTrails[key].setLatLngs(hist);
-                    flightTrails[key].setStyle({ color });
-                } else {
-                    flightTrails[key] = L.polyline(hist, {
-                        color,
-                        weight: 1.5,
-                        opacity: 0.5,
-                        interactive: false
-                    }).addTo(map);
-                }
-                flightTrails[key].bringToBack();
-            } else if (!settings.fields.showTrails && flightTrails[key]) {
+            if (!settings.fields.showTrails && flightTrails[key]) {
                 map.removeLayer(flightTrails[key]);
                 delete flightTrails[key];
             }
@@ -469,6 +476,7 @@ async function refreshFlights() {
                     delete flightTrails[key];
                 }
                 delete positionHistory[key];
+                delete lastPosition[key];
                 if (followedCallsign === key) setFollow(null);
             }
         }

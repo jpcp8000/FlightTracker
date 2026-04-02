@@ -15,21 +15,38 @@ VERSION = "0.9.1-beta"
 fr_api = FlightRadar24API()
 app = Flask(__name__)
 
-# Load OurAirports type data (large/medium/small) keyed by ICAO
-def load_airport_types():
+# Build a spatial grid index: (lat_cell, lon_cell) -> [airport, ...]
+# Merges airportsdata (lat/lon) with OurAirports CSV (type) at startup.
+# Uses 1-degree cells so bounding box queries check only relevant cells.
+def build_airport_grid():
     types = {}
     csv_path = os.path.join(os.path.dirname(__file__), 'airports.csv')
     try:
         with open(csv_path, newline='', encoding='utf-8') as f:
             for row in csv.DictReader(f):
-                if row.get('ident'):
-                    types[row['ident']] = row.get('type', 'small_airport')
+                ident = row.get('ident')
+                if ident:
+                    types[ident] = row.get('type', 'small_airport')
     except Exception as e:
         print(f"Warning: could not load airports.csv: {e}")
-    return types
 
-AIRPORT_TYPES = load_airport_types()
-AIRPORTS_DB   = airportsdata.load("ICAO")
+    grid = {}
+    for icao, a in airportsdata.load("ICAO").items():
+        lat, lon = a.get("lat"), a.get("lon")
+        if lat is None or lon is None:
+            continue
+        cell = (int(lat // 1), int(lon // 1))
+        grid.setdefault(cell, []).append({
+            "icao": icao,
+            "iata": a.get("iata", ""),
+            "name": a.get("name", icao),
+            "lat":  lat,
+            "lon":  lon,
+            "type": types.get(icao, "small_airport")
+        })
+    return grid
+
+AIRPORT_GRID = build_airport_grid()
 
 # ============================================================
 # FLIGHTRADAR24
@@ -174,20 +191,14 @@ def api_airports():
     if None in (lamin, lamax, lomin, lomax):
         return jsonify({"error": "bounds required"}), 400
 
+    # Query only the grid cells that overlap the bounding box
     results = []
-    for icao, a in AIRPORTS_DB.items():
-        lat, lon = a.get("lat"), a.get("lon")
-        if lat is None or lon is None:
-            continue
-        if lamin <= lat <= lamax and lomin <= lon <= lomax:
-            results.append({
-                "icao": icao,
-                "iata": a.get("iata", ""),
-                "name": a.get("name", icao),
-                "lat":  lat,
-                "lon":  lon,
-                "type": AIRPORT_TYPES.get(icao, "small_airport")
-            })
+    lat_cells = range(int(lamin // 1), int(lamax // 1) + 1)
+    lon_cells = range(int(lomin // 1), int(lomax // 1) + 1)
+    for cell in ((la, lo) for la in lat_cells for lo in lon_cells):
+        for a in AIRPORT_GRID.get(cell, []):
+            if lamin <= a["lat"] <= lamax and lomin <= a["lon"] <= lomax:
+                results.append(a)
     return jsonify(results)
 
 @app.route('/api/flights')
