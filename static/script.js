@@ -7,6 +7,7 @@ let flightTrails     = {};   // callsign → Leaflet polyline
 let positionHistory  = {};   // callsign → [[lat, lon], ...]
 let airportMarkers   = {};
 let followedCallsign = null;
+let followPanning    = false;
 let flightFilter     = '';
 
 const MAX_TRAIL_POINTS = 60; // 10 min at 10-sec refresh
@@ -114,11 +115,12 @@ function initMap(lat, lon) {
 
     let mapMoveTimer = null;
     map.on('moveend zoomend', () => {
+        if (followPanning) return;
         clearTimeout(mapMoveTimer);
         mapMoveTimer = setTimeout(() => {
             refreshFlights();
             refreshAirportPins();
-        }, 150);
+        }, 300);
     });
 }
 
@@ -417,7 +419,9 @@ async function refreshFlights() {
 
             // Pan to followed plane
             if (followedCallsign === f.callsign) {
+                followPanning = true;
                 map.panTo([f.lat, f.lon], { animate: true, duration: 0.5 });
+                setTimeout(() => { followPanning = false; }, 600);
             }
 
             // Update position history
@@ -693,7 +697,7 @@ function start(lat, lon) {
     refreshFlights();
     refreshAirport();
     refreshAirportPins();
-    refreshFlightsInterval = setInterval(refreshFlights, 10000);
+    refreshFlightsInterval = setInterval(refreshFlights, 3000);
     refreshAirportInterval = setInterval(refreshAirport, 60000);
 }
 
