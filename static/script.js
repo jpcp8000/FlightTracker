@@ -420,12 +420,12 @@ async function refreshFlights() {
                 if (moved)   flightMarkers[key].setLatLng([f.lat, f.lon]);
                 if (changed) flightMarkers[key].setIcon(planeIcon(f.heading, f.aircraft, f.status));
                 if (moved || changed) flightMarkers[key].setPopupContent(popupHTML);
-                flightMarkers[key]._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status };
+                flightMarkers[key]._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status, callsign: f.callsign, number: f.number };
             } else {
                 const marker = L.marker([f.lat, f.lon], { icon: planeIcon(f.heading, f.aircraft, f.status) })
                     .bindPopup(popupHTML)
                     .addTo(map);
-                marker._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status };
+                marker._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status, callsign: f.callsign, number: f.number };
                 marker.on('click', () => setFollow(key, f.callsign));
                 flightMarkers[key] = marker;
             }
@@ -588,7 +588,22 @@ async function locateFlight(callsign) {
             showToast(`Found ${callsign} — panning to location`);
             map.setView([d.lat, d.lon], Math.max(map.getZoom(), 8));
             await refreshFlights();
-            if (d.icao24) flashMarker(d.icao24);
+            const key = Object.keys(flightMarkers).find(k => {
+                const fd = flightMarkers[k]._flightData;
+                return fd && (fd.callsign === callsign || fd.number === callsign);
+            });
+            if (key) {
+                flashMarker(key);
+            } else {
+                // Plane may not be in current view yet — retry after next refresh cycle
+                setTimeout(() => {
+                    const retryKey = Object.keys(flightMarkers).find(k => {
+                        const fd = flightMarkers[k]._flightData;
+                        return fd && (fd.callsign === callsign || fd.number === callsign);
+                    });
+                    if (retryKey) flashMarker(retryKey);
+                }, 3500);
+            }
         } else {
             showToast(`${callsign} is not currently trackable`);
         }
