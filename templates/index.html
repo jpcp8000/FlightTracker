@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Tracker</title>
+    <link rel="stylesheet" href="/static/leaflet.css" />
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark">
+    <div id="header">
+        <div id="branding">✈ Flight Tracker</div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+            <span class="stat-label">Time</span>
+            <span class="stat-value" id="stat-time">--:-- --</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+            <span class="stat-label">Planes Visible</span>
+            <span class="stat-value" id="stat-count">--</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+            <span class="stat-label">Highest</span>
+            <span class="stat-value" id="stat-highest">--</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+            <span class="stat-label">Fastest</span>
+            <span class="stat-value" id="stat-fastest">--</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+            <span class="stat-label">Climbing</span>
+            <span class="stat-value climbing" id="stat-climbing">--</span>
+        </div>
+        <div class="stat-block">
+            <span class="stat-label">Level</span>
+            <span class="stat-value level" id="stat-level">--</span>
+        </div>
+        <div class="stat-block">
+            <span class="stat-label">Descending</span>
+            <span class="stat-value descending" id="stat-descending">--</span>
+        </div>
+        <div id="header-right">
+            <button id="theme-toggle" title="Toggle light/dark mode">☀</button>
+        </div>
+    </div>
+
+    <div id="app">
+
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="map-status">Waiting for location...</div>
+            <div id="follow-badge" style="display:none;">
+                <span id="follow-label"></span>
+                <button id="follow-exit" title="Stop following">✕</button>
+            </div>
+            <div id="location-bar">
+                <button id="gps-btn">&#x2316; Detect My Location</button>
+                <span id="location-divider">or</span>
+                <input type="text" id="zip-input" placeholder="Enter zip code" maxlength="10">
+                <button id="zip-btn">Go</button>
+            </div>
+        </div>
+
+        <div id="resize-handle"></div>
+
+        <div id="sidebar">
+
+            <!-- Flight filter -->
+            <div id="flight-filter-bar">
+                <input type="text" id="flight-filter" placeholder="Filter by callsign or airline…">
+            </div>
+
+            <!-- Airport search -->
+            <div id="airport-selector">
+                <input type="text" id="airport-input" placeholder="ICAO (e.g. KPVU)" maxlength="6">
+                <button id="airport-btn">Search</button>
+            </div>
+
+            <!-- Settings panel -->
+            <div id="settings-section">
+                <div id="settings-toggle">
+                    <span>&#9881; Settings</span>
+                    <span id="settings-arrow">&#9660;</span>
+                </div>
+                <div id="settings-body">
+
+                    <div class="settings-group">
+                        <div class="settings-label">Identification</div>
+                        <label class="settings-check"><input type="checkbox" data-field="callsign" checked> Callsign</label>
+                        <label class="settings-check"><input type="checkbox" data-field="number"> Flight number</label>
+                        <label class="settings-check"><input type="checkbox" data-field="airline"> Airline</label>
+                        <label class="settings-check"><input type="checkbox" data-field="registration"> Registration</label>
+                        <label class="settings-check"><input type="checkbox" data-field="icao24"> ICAO 24-bit</label>
+                        <label class="settings-check"><input type="checkbox" data-field="squawk"> Squawk code</label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Route</div>
+                        <label class="settings-check"><input type="checkbox" data-field="origin" checked> Origin airport</label>
+                        <label class="settings-check"><input type="checkbox" data-field="destination" checked> Destination airport</label>
+                        <label class="settings-check"><input type="checkbox" data-field="aircraft" checked> Aircraft type</label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Flight data</div>
+                        <label class="settings-check"><input type="checkbox" data-field="altitude" checked> Altitude</label>
+                        <label class="settings-check"><input type="checkbox" data-field="speed" checked> Speed</label>
+                        <label class="settings-check"><input type="checkbox" data-field="heading" checked> Heading</label>
+                        <label class="settings-check"><input type="checkbox" data-field="status" checked> Climb status</label>
+                        <label class="settings-check"><input type="checkbox" data-field="onground"> On ground indicator</label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Altitude filter</div>
+                        <div class="slider-row">
+                            <span>Min</span>
+                            <input type="range" id="alt-min" min="0" max="60000" step="1000" value="0">
+                            <span id="alt-min-val">0 ft</span>
+                        </div>
+                        <div class="slider-row">
+                            <span>Max</span>
+                            <input type="range" id="alt-max" min="0" max="60000" step="1000" value="60000">
+                            <span id="alt-max-val">60,000 ft</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Map display</div>
+                        <label class="settings-check"><input type="checkbox" data-field="climbColors"> Color by climb status</label>
+                        <label class="settings-check"><input type="checkbox" data-field="showTrails" checked> Show flight trails</label>
+                        <label class="settings-check"><input type="checkbox" data-field="showAirports" checked> Show airport pins</label>
+                        <label class="settings-check sub-check"><input type="checkbox" data-field="showLargeAirports" checked> Large airports</label>
+                        <label class="settings-check sub-check"><input type="checkbox" data-field="showMediumAirports" checked> Medium airports</label>
+                        <label class="settings-check sub-check"><input type="checkbox" data-field="showSmallAirports" checked> Small airports</label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Weather overlay</div>
+                        <label class="settings-check"><input type="checkbox" data-field="showWeather"> Show weather</label>
+                        <div class="slider-row" style="margin-top:6px;">
+                            <span>Layer</span>
+                            <select id="weather-layer">
+                                <option value="clouds_new">Clouds</option>
+                                <option value="precipitation_new">Precipitation</option>
+                                <option value="wind_new">Wind</option>
+                                <option value="temp_new">Temperature</option>
+                                <option value="pressure_new">Pressure</option>
+                            </select>
+                        </div>
+                        <div class="slider-row">
+                            <span>Opacity</span>
+                            <input type="range" id="weather-opacity" min="0.1" max="1" step="0.05" value="0.5">
+                            <span id="weather-opacity-val">50%</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Arrivals window</div>
+                        <div class="slider-row">
+                            <span>Past</span>
+                            <input type="range" id="arr-past" min="0" max="180" step="15" value="30">
+                            <span id="arr-past-val">30 min</span>
+                        </div>
+                        <div class="slider-row">
+                            <span>Future</span>
+                            <input type="range" id="arr-future" min="0" max="360" step="15" value="60">
+                            <span id="arr-future-val">60 min</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-label">Departures window</div>
+                        <div class="slider-row">
+                            <span>Past</span>
+                            <input type="range" id="dep-past" min="0" max="180" step="15" value="60">
+                            <span id="dep-past-val">60 min</span>
+                        </div>
+                        <div class="slider-row">
+                            <span>Future</span>
+                            <input type="range" id="dep-future" min="0" max="360" step="15" value="30">
+                            <span id="dep-future-val">30 min</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Arrivals panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Arrivals</span>
+                    <span class="panel-subtitle" id="arr-subtitle">last 30 min · next 60 min</span>
+                </div>
+                <div id="arrivals-list" class="flight-list">
+                    <div class="empty-msg">Waiting for airport...</div>
+                </div>
+            </div>
+
+            <!-- Departures panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Departures</span>
+                    <span class="panel-subtitle" id="dep-subtitle">last 60 min · next 30 min</span>
+                </div>
+                <div id="departures-list" class="flight-list">
+                    <div class="empty-msg">Waiting for airport...</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    <script src="/static/leaflet.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
