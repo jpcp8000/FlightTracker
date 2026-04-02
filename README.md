@@ -2,7 +2,7 @@
 
 A personal full-screen flight tracking dashboard built with Flask and Leaflet.js. Shows live overhead flights, airport arrivals/departures, weather overlays, and more.
 
-![dark mode dashboard](https://via.placeholder.com/800x450?text=screenshot+here)
+![dark mode dashboard](darkmode.png)
 
 ## Features
 
