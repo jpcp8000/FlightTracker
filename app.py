@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+VERSION = "0.9.0-beta"
+
 fr_api = FlightRadar24API()
 app = Flask(__name__)
 
@@ -206,10 +208,10 @@ def api_airport():
     code = request.args.get('code', '').strip().upper()
     if not code:
         return jsonify({"error": "airport code required"}), 400
-    arr_past   = request.args.get('arr_past',   30,  type=int)
-    arr_future = request.args.get('arr_future', 60,  type=int)
-    dep_past   = request.args.get('dep_past',   60,  type=int)
-    dep_future = request.args.get('dep_future', 30,  type=int)
+    arr_past   = max(0, min(request.args.get('arr_past',   30,  type=int), 360))
+    arr_future = max(0, min(request.args.get('arr_future', 60,  type=int), 360))
+    dep_past   = max(0, min(request.args.get('dep_past',   60,  type=int), 360))
+    dep_future = max(0, min(request.args.get('dep_future', 30,  type=int), 360))
     arrivals, departures = get_airport_flights(code, arr_past, arr_future, dep_past, dep_future)
     if arrivals is None:
         return jsonify({"error": "FR24 unavailable"}), 503
@@ -217,7 +219,8 @@ def api_airport():
 
 @app.route('/api/config')
 def api_config():
-    return jsonify({"owm_api_key": os.getenv("OPENWEATHER_API_KEY", "")})
+    return jsonify({"owm_api_key": os.getenv("OPENWEATHER_API_KEY", ""), "version": VERSION})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5002, threaded=True)
+    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    app.run(debug=debug, port=5002, threaded=True)

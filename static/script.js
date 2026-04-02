@@ -112,9 +112,13 @@ function initMap(lat, lon) {
         maxZoom: 18
     }).addTo(map);
 
+    let mapMoveTimer = null;
     map.on('moveend zoomend', () => {
-        refreshFlights();
-        refreshAirportPins();
+        clearTimeout(mapMoveTimer);
+        mapMoveTimer = setTimeout(() => {
+            refreshFlights();
+            refreshAirportPins();
+        }, 150);
     });
 }
 
@@ -138,6 +142,9 @@ fetch('/api/config')
     .then(cfg => {
         owmApiKey = cfg.owm_api_key || '';
         applyWeatherLayer();
+        if (cfg.version) {
+            document.getElementById('version-badge').textContent = `v${cfg.version}`;
+        }
     })
     .catch(() => {});
 
@@ -485,7 +492,10 @@ async function refreshFlights() {
 // ---- Airport arrivals/departures refresh (every 60 seconds) ----
 
 function fmtMins(m) {
-    return m >= 60 ? `${m / 60}h` : `${m}m`;
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem ? `${h}h ${rem}m` : `${h}h`;
 }
 
 function fmtAlt(ft) {

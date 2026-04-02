@@ -70,6 +70,14 @@ body {
     white-space: nowrap;
 }
 
+#version-badge {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-faint);
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
 #header-right {
     margin-left: auto;
     display: flex;

@@ -1,4 +1,4 @@
-# Flight Tracker
+# Flight Tracker `v0.9.0-beta`
 
 A personal full-screen flight tracking dashboard built with Flask and Leaflet.js. Shows live overhead flights, airport arrivals/departures, weather overlays, and more.
 
@@ -50,8 +50,6 @@ OPENWEATHER_API_KEY=your_key_here
 ```
 
 Get a free API key at [openweathermap.org](https://openweathermap.org/api). The weather overlay won't work without it, but everything else will.
-
-> The `OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET` fields are optional — OpenSky is included as a commented-out fallback data source.
 
 ### 5. Run
 
