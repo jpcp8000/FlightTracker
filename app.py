@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-VERSION = "0.9.1-beta"
+VERSION = "0.9.2-beta"
 
 fr_api = FlightRadar24API()
 app = Flask(__name__)
