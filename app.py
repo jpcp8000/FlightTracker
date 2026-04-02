@@ -240,7 +240,7 @@ def api_locate():
             cs     = (detail.get('callsign') or '').upper()
             flight = (detail.get('flight')   or '').upper()
             if callsign in (cs, flight):
-                return jsonify({"found": True, "lat": detail['lat'], "lon": detail['lon']})
+                return jsonify({"found": True, "lat": detail['lat'], "lon": detail['lon'], "icao24": item.get('id', '')})
         return jsonify({"found": False})
     except Exception as e:
         print(f"FR24 locate error: {e}")

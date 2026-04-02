@@ -420,10 +420,12 @@ async function refreshFlights() {
                 if (moved)   flightMarkers[key].setLatLng([f.lat, f.lon]);
                 if (changed) flightMarkers[key].setIcon(planeIcon(f.heading, f.aircraft, f.status));
                 if (moved || changed) flightMarkers[key].setPopupContent(popupHTML);
+                flightMarkers[key]._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status };
             } else {
                 const marker = L.marker([f.lat, f.lon], { icon: planeIcon(f.heading, f.aircraft, f.status) })
                     .bindPopup(popupHTML)
                     .addTo(map);
+                marker._flightData = { heading: f.heading, aircraft: f.aircraft, status: f.status };
                 marker.on('click', () => setFollow(key, f.callsign));
                 flightMarkers[key] = marker;
             }
@@ -538,6 +540,43 @@ function showToast(msg, duration = 3000) {
     toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
+// ---- Flash a marker to highlight it ----
+
+function flashMarker(key) {
+    const marker = flightMarkers[key];
+    if (!marker) return;
+
+    const flashIcon = (on) => {
+        const f = marker._flightData;
+        if (!f) return;
+        if (on) {
+            marker.setIcon(L.divIcon({
+                className: '',
+                html: `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 100 100"
+                           style="transform: rotate(${f.heading}deg); filter: drop-shadow(0 0 6px #fff);">
+                           <polygon points="50,5 62,40 58,40 58,70 65,75 65,85 50,80 35,85 35,75 42,70 42,40 38,40"
+                                    fill="#ffffff" stroke="#0d1117" stroke-width="3"/>
+                           <polygon points="20,55 42,45 42,60" fill="#ffffff" stroke="#0d1117" stroke-width="2"/>
+                           <polygon points="80,55 58,45 58,60" fill="#ffffff" stroke="#0d1117" stroke-width="2"/>
+                       </svg>`,
+                iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -18]
+            }));
+        } else {
+            marker.setIcon(planeIcon(f.heading, f.aircraft, f.status));
+        }
+    };
+
+    let count = 0;
+    const interval = setInterval(() => {
+        flashIcon(count % 2 === 0);
+        count++;
+        if (count >= 8) {
+            clearInterval(interval);
+            flashIcon(false);
+        }
+    }, 400);
+}
+
 // ---- Locate flight from arrivals/departures panel ----
 
 async function locateFlight(callsign) {
@@ -548,7 +587,8 @@ async function locateFlight(callsign) {
         if (d.found) {
             showToast(`Found ${callsign} — panning to location`);
             map.setView([d.lat, d.lon], Math.max(map.getZoom(), 8));
-            refreshFlights();
+            await refreshFlights();
+            if (d.icao24) flashMarker(d.icao24);
         } else {
             showToast(`${callsign} is not currently trackable`);
         }
