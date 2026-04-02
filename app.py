@@ -235,11 +235,12 @@ def api_locate():
         return jsonify({"error": "callsign required"}), 400
     try:
         results = fr_api.search(callsign)
-        for f in results.get('live', []):
-            cs  = (getattr(f, 'callsign', '') or '').upper()
-            num = (getattr(f, 'number',   '') or '').upper()
-            if cs == callsign or num == callsign:
-                return jsonify({"found": True, "lat": f.latitude, "lon": f.longitude})
+        for item in results.get('live', []):
+            detail = item.get('detail', {})
+            cs     = (detail.get('callsign') or '').upper()
+            flight = (detail.get('flight')   or '').upper()
+            if callsign in (cs, flight):
+                return jsonify({"found": True, "lat": detail['lat'], "lon": detail['lon']})
         return jsonify({"found": False})
     except Exception as e:
         print(f"FR24 locate error: {e}")
