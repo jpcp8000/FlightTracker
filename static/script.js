@@ -10,7 +10,12 @@ let followedCallsign = null;
 let followPanning    = false;
 let flightFilter     = '';
 
-const MAX_TRAIL_POINTS = 60; // 10 min at 10-sec refresh
+const MAX_TRAIL_POINTS = 60; // 10 min at 3-sec refresh
+
+// Use icao24 as the unique key per aircraft; fall back to callsign if missing
+function flightKey(f) {
+    return f.icao24 || f.callsign || 'unknown';
+}
 let currentAirport = localStorage.getItem('lastAirport') || 'KPVU';
 
 // ---- Theme ----
@@ -174,11 +179,11 @@ weatherOpacitySlider.addEventListener('input', () => {
 
 // ---- Follow mode ----
 
-function setFollow(callsign) {
-    followedCallsign = callsign;
+function setFollow(key, label) {
+    followedCallsign = key || null;
     const badge = document.getElementById('follow-badge');
-    if (callsign) {
-        document.getElementById('follow-label').textContent = `Following: ${callsign}`;
+    if (key) {
+        document.getElementById('follow-label').textContent = `Following: ${label || key}`;
         badge.style.display = 'flex';
     } else {
         badge.style.display = 'none';
@@ -398,35 +403,36 @@ async function refreshFlights() {
             return true;
         });
 
-        const seenCallsigns = new Set();
+        const seenKeys = new Set();
 
         for (const f of filtered) {
             if (f.lat === null || f.lon === null) continue;
-            seenCallsigns.add(f.callsign);
+            const key = flightKey(f);
+            seenKeys.add(key);
             const popupHTML = buildPopup(f);
 
-            if (flightMarkers[f.callsign]) {
-                flightMarkers[f.callsign].setLatLng([f.lat, f.lon]);
-                flightMarkers[f.callsign].setIcon(planeIcon(f.heading, f.aircraft, f.status));
-                flightMarkers[f.callsign].setPopupContent(popupHTML);
+            if (flightMarkers[key]) {
+                flightMarkers[key].setLatLng([f.lat, f.lon]);
+                flightMarkers[key].setIcon(planeIcon(f.heading, f.aircraft, f.status));
+                flightMarkers[key].setPopupContent(popupHTML);
             } else {
                 const marker = L.marker([f.lat, f.lon], { icon: planeIcon(f.heading, f.aircraft, f.status) })
                     .bindPopup(popupHTML)
                     .addTo(map);
-                marker.on('click', () => setFollow(f.callsign));
-                flightMarkers[f.callsign] = marker;
+                marker.on('click', () => setFollow(key, f.callsign));
+                flightMarkers[key] = marker;
             }
 
             // Pan to followed plane
-            if (followedCallsign === f.callsign) {
+            if (followedCallsign === key) {
                 followPanning = true;
                 map.panTo([f.lat, f.lon], { animate: true, duration: 0.5 });
                 setTimeout(() => { followPanning = false; }, 600);
             }
 
             // Update position history
-            if (!positionHistory[f.callsign]) positionHistory[f.callsign] = [];
-            const hist = positionHistory[f.callsign];
+            if (!positionHistory[key]) positionHistory[key] = [];
+            const hist = positionHistory[key];
             const last = hist[hist.length - 1];
             if (!last || last[0] !== f.lat || last[1] !== f.lon) {
                 hist.push([f.lat, f.lon]);
@@ -436,39 +442,39 @@ async function refreshFlights() {
             // Draw or update trail
             if (settings.fields.showTrails && hist.length >= 2) {
                 const color = getPlaneColor(f.status, f.aircraft);
-                if (flightTrails[f.callsign]) {
-                    flightTrails[f.callsign].setLatLngs(hist);
-                    flightTrails[f.callsign].setStyle({ color });
+                if (flightTrails[key]) {
+                    flightTrails[key].setLatLngs(hist);
+                    flightTrails[key].setStyle({ color });
                 } else {
-                    flightTrails[f.callsign] = L.polyline(hist, {
+                    flightTrails[key] = L.polyline(hist, {
                         color,
                         weight: 1.5,
                         opacity: 0.5,
                         interactive: false
                     }).addTo(map);
                 }
-                flightTrails[f.callsign].bringToBack();
-            } else if (!settings.fields.showTrails && flightTrails[f.callsign]) {
-                map.removeLayer(flightTrails[f.callsign]);
-                delete flightTrails[f.callsign];
+                flightTrails[key].bringToBack();
+            } else if (!settings.fields.showTrails && flightTrails[key]) {
+                map.removeLayer(flightTrails[key]);
+                delete flightTrails[key];
             }
         }
 
-        for (const callsign in flightMarkers) {
-            if (!seenCallsigns.has(callsign)) {
-                map.removeLayer(flightMarkers[callsign]);
-                delete flightMarkers[callsign];
-                if (flightTrails[callsign]) {
-                    map.removeLayer(flightTrails[callsign]);
-                    delete flightTrails[callsign];
+        for (const key in flightMarkers) {
+            if (!seenKeys.has(key)) {
+                map.removeLayer(flightMarkers[key]);
+                delete flightMarkers[key];
+                if (flightTrails[key]) {
+                    map.removeLayer(flightTrails[key]);
+                    delete flightTrails[key];
                 }
-                delete positionHistory[callsign];
-                if (followedCallsign === callsign) setFollow(null);
+                delete positionHistory[key];
+                if (followedCallsign === key) setFollow(null);
             }
         }
 
         // If followed plane is filtered out this cycle, clear follow
-        if (followedCallsign && !seenCallsigns.has(followedCallsign)) setFollow(null);
+        if (followedCallsign && !seenKeys.has(followedCallsign)) setFollow(null);
 
         const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('map-status').textContent =
